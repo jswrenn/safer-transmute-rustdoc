@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["NeglectStability","Neglect the static stability check."]],"trait":[["SafeTransmuteOptions","Options that may be used with safe transmutations."],["UnsafeTransmuteOptions","Options that may be used with unsafe transmutations."]]});
