@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["SafeCastOptions","The super-trait of all safe casting options."],["SafeSliceCastOptions","Safe options for casting slices."],["UnsafeCastOptions","The super-trait of all unsafe casting options."],["UnsafeSliceCastOptions","Unsafe options for casting slices."]]});

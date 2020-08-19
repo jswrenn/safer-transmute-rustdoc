@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["slice","Options for casting the contents of slices."]],"trait":[["CastFrom",""],["CastInto",""],["SafeCastOptions",""],["UnsafeCastOptions",""]]});
+initSidebarItems({"mod":[["options","Options for casting."]],"trait":[["CastFrom","Instantiate `Self` from a value of type `Src`."],["CastInto","Cast `Self` into `Dst`."]]});
