@@ -28,6 +28,36 @@ use transmute::*;
 ///  - A safe transmutation is ***stable*** if the authors of the source type and destination types [have indicated that the layouts of those types is part of their libraries' stability guarantees][stability].
 ///
 /// For more information on these concepts [**see here**](https://github.com/jswrenn/project-safe-transmute/blob/rfc/rfcs/0000-safe-transmute.md#concepts-in-depth).
+///
+/// ## Example
+/// Given:
+/// ```rust
+/// use core::convert::transmute::{
+///     TransmuteInto,
+///     stability::{PromiseTransmutableInto, PromiseTransmutableFrom},
+/// };
+///
+/// #[derive(PromiseTransmutableInto, PromiseTransmutableFrom)]
+/// #[repr(C)]
+/// pub struct Foo(pub u8, pub u16);
+/// //                    ^ there's a padding byte here, between these fields
+/// ```
+/// This transmutation accepted:
+/// ```rust
+/// let _ : Foo = 64u32.transmute_into(); // Alchemy Achieved!
+/// //                  ^^^^^^^^^^^^^^ provided by the `TransmuteInto` trait
+/// ```
+/// But this transmutation is rejected:
+/// ```compile_fail
+/// let _ : u32 = Foo(16, 12).transmute_into();
+/// // error[E0277]: the trait bound `u32: TransmuteFrom<Foo, _>` is not satisfied
+/// //   --> src/demo.rs:15:27
+/// //    |
+/// // 15 | let _ : u32 = Foo(16, 12).transmute_into();
+/// //    |                           ^^^^^^^^^^^^^^ the trait `TransmuteFrom<foo::Foo, _>` is not implemented for `u32`
+/// //    |
+/// //   = note: required because of the requirements on the impl of `TransmuteInto<u32, _>` for `foo::Foo`
+/// ```
 pub mod transmute {
     use {options::*, stability::*};
 
