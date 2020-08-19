@@ -4,16 +4,31 @@
 #![feature(const_fn, const_panic)] // for const free functions
 #![feature(marker_trait_attr)] // for cast extension
 #![feature(staged_api)] // for `unstable` attribute
-
 #![no_std]
-
 #![allow(unused_unsafe, incomplete_features)]
+#![deny(missing_docs)]
 
-/// Bit-preserving conversions.
+//! Rustdoc for the API surface proposed by the [safer transmute RFC](https://github.com/rust-lang/project-safe-transmute/pull/5).
+
+use transmute::*;
+
+/// **Bit-preserving conversions.**
 ///
+/// Transmutation is the act of reinterpreting the bytes corresponding to a value of one type as if they corresponded to a different type. A transmutation of a `Src` to a `Dst` type is similar to defining a union with two variants:
+/// ```rust
+/// #![feature(untagged_unions)]
+/// union Transmute<Src, Dst> {
+///     src: ManuallyDrop<Src>,
+///     dst: ManuallyDrop<Dst>,
+/// }
+/// ```
+/// And instantiating that union with its `src` variant, then reading `dst` back out. The [TransmuteFrom] and [TransmuteInto] traits are implemented *automatically* for all `Src` and `Dst` types where it is *sound*, *safe*, and *stable* to do this conversion:
+///  - A transmutation is ***sound*** if the mere act of transmuting a value from one type to another is not compiler undefined behavior.
+///  - A sound transmutation is ***safe*** if *using* the transmuted value cannot violate memory safety.
+///  - A safe transmutation is ***stable*** if the authors of the source type and destination types [have indicated that the layouts of those types is part of their libraries' stability guarantees][stability].
+///
+/// For more information on these concepts [**see here**](https://github.com/jswrenn/project-safe-transmute/blob/rfc/rfcs/0000-safe-transmute.md#concepts-in-depth).
 pub mod transmute {
-    #![deny(missing_docs)]
-
     use {options::*, stability::*};
 
     /// Reinterprets the bits of a value of one type as another type, safely.
@@ -39,6 +54,8 @@ pub mod transmute {
     /// Reinterpret the bits of `Self` as a type `Dst`.
     ///
     /// The reciprocal of [TransmuteFrom].
+    ///
+    /// ***This trait is implemented automatically by the compiler for combinations of types where a transmutation is valid.***
     pub unsafe trait TransmuteInto<Dst: ?Sized, Neglect = ()>
     where
         Neglect: UnsafeTransmuteOptions,
@@ -89,6 +106,8 @@ pub mod transmute {
 
     /// Reinterpret the bits of `Src` as a type `Self`.
     ///
+    /// The reciprocal of [TransmuteFrom].
+    ///
     /// ***This trait is implemented automatically by the compiler for combinations of types where a transmutation is valid.***
     pub unsafe trait TransmuteFrom<Src: ?Sized, Neglect = ()>
     where
@@ -133,8 +152,8 @@ pub mod transmute {
     unsafe impl<T> TransmuteFrom<T, NeglectStability> for T {}
 
     /// A type `Dst` is [stably][stability] transmutable from `Src` if:
-    ///  - `Dst` implements [trait@PromiseTransmutableFrom], 
-    ///  - `Src` implements [trait@PromiseTransmutableInto], and
+    ///  - `Dst` implements [PromiseTransmutableFrom][trait@PromiseTransmutableFrom], 
+    ///  - `Src` implements [PromiseTransmutableInto][trait@PromiseTransmutableInto], and
     ///  - The [PromiseTransmutableFrom::Archetype] of `Dst` is safely transmutable from the [PromiseTransmutableInto::Archetype] of `Src`.
     unsafe impl<Src, Dst> TransmuteFrom<Src> for Dst
     where
@@ -157,6 +176,8 @@ pub mod transmute {
     /// #[repr(C)]
     /// pub struct Foo(pub Bar, pub Baz);
     /// ```
+    ///
+    /// For more information on stability, [**see here**](https://github.com/jswrenn/project-safe-transmute/blob/rfc/rfcs/0000-safe-transmute.md#-when-is-a-transmutation-stable).
     pub mod stability {
 
         use super::{TransmuteFrom, TransmuteInto, options::NeglectStability};
@@ -171,7 +192,7 @@ pub mod transmute {
         /// ```
         pub trait PromiseTransmutableInto
         {
-            /// The `Archetype` must be safely transmutable from `Self`.
+            /// A type which exemplifies the greatest extent to which `Self` might change in non-breaking crate releases, insofar that those changes might affect converting `Self` into another type via transmutation. 
             type Archetype
                 : TransmuteFrom<Self, NeglectStability>
                 + PromiseTransmutableInto;
@@ -190,7 +211,7 @@ pub mod transmute {
         /* #[lang = "promise_transmutable_from"] */
         pub trait PromiseTransmutableFrom
         {
-            /// The `Archetype` must be safely transmutable into `Self`.
+            /// A type which exemplifies the greatest extent to which `Self` might change in non-breaking crate releases, insofar that those changes might affect instantiating `Self` via transmutation. 
             type Archetype
                 : TransmuteInto<Self, NeglectStability>
                 + PromiseTransmutableFrom;
@@ -200,7 +221,7 @@ pub mod transmute {
         mod macros {
             use super::*;
 
-            /// Derive macro generating an impl of the trait [trait@PromiseTransmutableFrom].
+            /// Derive macro generating an impl of the trait [PromiseTransmutableFrom][trait@PromiseTransmutableFrom].
             ///
             /// To promise that all safe transmutations from your type into other `PromiseTransmutableFrom` types will remain safe in the future, simply annotate your type with `#[derive(PromiseTransmutableFrom)]`.
             /// 
@@ -214,7 +235,7 @@ pub mod transmute {
             /// ```rust
             /// /// Generated `PromiseTransmutableInto` for `Foo`
             /// const _: () = {
-            ///     use core::transmute::stability::PromiseTransmutableInto;
+            ///     use core::convert::transmute::stability::PromiseTransmutableInto;
             /// 
             ///     #[repr(C)]
             ///     pub struct TransmutableIntoArchetype(
@@ -233,7 +254,7 @@ pub mod transmute {
                 /* compiler built-in */
             }
 
-            /// Derive macro generating an impl of the trait [trait@PromiseTransmutableFrom].
+            /// Derive macro generating an impl of the trait [PromiseTransmutableFrom][trait@PromiseTransmutableFrom].
             ///
             /// To promise that all transmutations of any `PromiseTransmutableInto` type into your type that are currently safe will remain so in the future, simply annotate your type with `#[derive(PromiseTransmutableFrom)]`.
             /// 
@@ -247,7 +268,7 @@ pub mod transmute {
             /// ```rust
             /// /// Generated `PromiseTransmutableFrom` for `Foo`
             /// const _: () = {
-            ///     use core::transmute::stability::PromiseTransmutableFrom;
+            ///     use core::convert::transmute::stability::PromiseTransmutableFrom;
             /// 
             ///     #[repr(C)]
             ///     pub struct TransmutableFromArchetype(
@@ -266,9 +287,11 @@ pub mod transmute {
                 /* compiler built-in */
             }
 
-            /// Derive macro generating impls of *both* [trait@PromiseTransmutableFrom] and [trait@PromiseTransmutableInto].
+            /// Derive macro generating impls of *both* [PromiseTransmutableFrom][trait@PromiseTransmutableFrom] and [PromiseTransmutableInto][trait@PromiseTransmutableInto].
             ///
             /// This is just a shorthand for deriving both [PromiseTransmutableFrom!] and [PromiseTransmutableInto!].
+            ///
+            /// For more information on this extension, [**see here**](https://github.com/jswrenn/project-safe-transmute/blob/rfc/rfcs/0000-safe-transmute.md#extension-promisetransmutable-shorthand).
             #[unstable(feature = "stability_shorthand", issue = "none")]
             pub macro PromiseTransmutable($item:item) {
                 /* compiler built-in */
@@ -430,16 +453,17 @@ pub mod transmute {
 
     /// Static checks that may be neglected when determining if two types are transmutable.
     ///
-    /// The default value of the `Neglect` parameter, `()`, statically forbids transmutes that are unsafe, unsound, or unstable. However, you may explicitly opt-out of some static checks:
+    /// The default value of the `Neglect` parameter of [TransmuteFrom] and [TransmuteInto], `()`, statically forbids transmutes that are unsafe, unsound, or unstable. However, you may explicitly opt-out of some static checks:
     /// 
     /// | Transmute Option    | Compromises | Usable With                                             |
     /// |---------------------|-------------|---------------------------------------------------------|
-    /// | `NeglectStabilty`   | Stability   | `transmute_{from,into}`, `unsafe_transmute_{from,into}` |
-    /// | `NeglectAlignment`  | Safety      | `unsafe_transmute_{from,into}`                          |
-    /// | `NeglectValidity`   | Soundness   | `unsafe_transmute_{from,into}`                          |
+    /// | [NeglectStability]   | Stability   | `transmute_{from,into}`, `unsafe_transmute_{from,into}` |
+    /// | [NeglectAlignment]  | Safety      | `unsafe_transmute_{from,into}`                          |
+    /// | [NeglectValidity]   | Soundness   | `unsafe_transmute_{from,into}`                          |
     /// 
-    /// `NeglectStabilty` implements the `SafeTransmuteOptions` and `UnsafeTransmuteOptions` marker traits, as it can be used in both safe and unsafe code. The selection of multiple options is encoded by grouping them as a tuple; e.g., `(NeglectAlignment, NeglectValidity)` is a selection of both the `NeglectAlignment` and `NeglectValidity` options.
+    /// The selection of multiple options is encoded by grouping them as a tuple; e.g., `(NeglectAlignment, NeglectValidity)` is a selection of both the [NeglectAlignment] and [NeglectValidity] options.
     pub mod options {
+        use super::*;
 
         /// Options that may be used with safe transmutations.
         pub trait SafeTransmuteOptions: UnsafeTransmuteOptions
@@ -454,9 +478,9 @@ pub mod transmute {
 
         /// Neglect the static stability check.
         ///
-        /// By default, `TransmuteFrom` and `TransmuteInto`'s methods require that the [layouts of the source and destination types are SemVer-stable][super::stability]. The `NeglectStability` option disables this requirement.
+        /// By default, [TransmuteFrom] and [TransmuteInto] require that the [layouts of the source and destination types are SemVer-stable][super::stability]. The [NeglectStability] option disables this requirement.
         ///
-        /// Prior to the adoption of the [stability declaration traits][super::stability], crate authors documented the layout guarantees of their types with doc comments. The `TransmuteFrom` and `TransmuteInto` traits and methods may be used with these types by requesting that the stability check is neglected; for instance:
+        /// Prior to the adoption of the [stability declaration traits][super::stability], crate authors documented the layout guarantees of their types with doc comments. The [TransmuteFrom] and [TransmuteInto] traits and methods may be used with these types by requesting that the stability check is neglected; for instance:
         /// 
         /// ```rust
         /// fn serialize<W: Write>(val : LibraryType, dst: W) -> std::io::Result<()>
@@ -476,10 +500,93 @@ pub mod transmute {
         impl SafeTransmuteOptions for NeglectStability {}
         impl UnsafeTransmuteOptions for NeglectStability {}
 
-        /*
+        /// Neglect the static alignment check.
+        ///
+        /// By default, [TransmuteFrom] and [TransmuteInto] are only implemented for references when the minimum alignment of the destination's referent type is no greater than the minimum alignment of the source's referent type. The `NeglectAlignment` option disables this requirement.
+        /// 
+        /// By using the `NeglectAlignment` option, you are committing to ensure that the transmuted reference satisfies the alignment requirements of the destination's referent type. For instance:
+        /// ```rust
+        /// /// Try to convert a `&T` into `&U`.
+        /// ///
+        /// /// This produces `None` if the referent isn't appropriately
+        /// /// aligned, as required by the destination type.
+        /// pub fn try_cast_ref<'t, 'u, T, U>(src: &'t T) -> Option<&'u U>
+        /// where
+        ///     &'t T: TransmuteInto<&'u U, NeglectAlignment>,
+        /// {
+        ///     if (src as *const T as usize) % align_of::<U>() != 0 {
+        ///         None
+        ///     } else {
+        ///         // Safe because we dynamically enforce the alignment
+        ///         // requirement, whose static check we chose to neglect.
+        ///         Some(unsafe { src.unsafe_transmute_into() })
+        ///     }
+        /// }
+        /// ```
         pub struct NeglectAlignment;
         impl UnsafeTransmuteOptions for NeglectAlignment {}
-        */
+
+        /// Partially neglect the static validity check.
+        /// 
+        /// By default, [TransmuteFrom] and [TransmuteInto]'s methods require that all instantiations of the source type are guaranteed to be valid instantiations of the destination type. This precludes transmutations which *might* be valid depending on the source value:
+        /// ```rust
+        /// #[derive(PromiseTransmutableFrom, PromiseTransmutableInto)]
+        /// #[repr(u8)]
+        /// enum Bool {
+        ///     True = 1,
+        ///     False = 0,
+        /// }
+        /// 
+        /// /* ⚠️ This example intentionally does not compile. */
+        /// let _ : Bool  = some_u8_value.transmute_into(); // Compile Error!
+        /// ```
+        /// The [NeglectValidity] option disables this check.
+        /// 
+        /// By using the [NeglectValidity] option, you are committing to ensure dynamically source value is a valid instance of the destination type. For instance:
+        /// ```rust
+        /// #[derive(PromiseTransmutableFrom, PromiseTransmutableInto)]
+        /// #[repr(u8)]
+        /// enum Bool {
+        ///     True = 1,
+        ///     False = 0,
+        /// }
+        /// 
+        /// pub trait TryIntoBool
+        /// {
+        ///     fn try_into_bool(self) -> Option<Bool>;
+        /// }
+        /// 
+        /// impl<T> TryIntoBool for T
+        /// where
+        ///     T: TransmuteInto<u8>,
+        ///     u8: TransmuteInto<Bool, NeglectValidity>
+        /// {
+        ///     fn try_into_bool(self) -> Option<Bool> {
+        ///         let val: u8 = self.transmute_into();
+        /// 
+        ///         if val > 1 {
+        ///             None
+        ///         } else {
+        ///             // Safe, because we've first verified that
+        ///             // `val` is a bit-valid instance of a boolean.
+        ///             Some(unsafe {val.unsafe_transmute_into()})
+        ///         }
+        ///     }
+        /// }
+        /// ```
+        /// 
+        /// Even with [NeglectValidity], the compiler will still statically reject transmutations that cannot possibly be valid:
+        /// ```compile_fail
+        /// #[derive(PromiseTransmutableInto)]
+        /// #[repr(C)] enum Foo { A = 24 }
+        /// 
+        /// #[derive(PromiseTransmutableFrom)]
+        /// #[repr(C)] enum Bar { Z = 42 }
+        /// 
+        /// let _ = <Bar as TransmuteFrom<Foo, NeglectValidity>::unsafe_transmute_from(Foo::N) // Compile error!
+        /// ```
+        pub struct NeglectValidity;
+        impl UnsafeTransmuteOptions for NeglectValidity {}
 
         /* FILL: Implementations for tuple combinations of options */
 
@@ -500,20 +607,24 @@ pub mod transmute {
 }
 
 /// (Extension) Bit-altering conversions.
+///
+/// This module demonstrates how the [transmute] API may be used (with a future iteration of const generics) to permit sound and complete slice casting.
+///
+/// For more information on this extension, [**see here**](https://github.com/jswrenn/project-safe-transmute/blob/rfc/rfcs/0000-safe-transmute.md#case-study-abstractions-for-fast-parsing).
 #[unstable(feature = "cast", issue = "none")]
 pub mod cast {
 
-    #[marker] pub trait SafeCastOptions: UnsafeCastOptions {}
-    #[marker] pub trait UnsafeCastOptions {}
+    use options::*;
 
-    impl SafeCastOptions for () {}
-    impl UnsafeCastOptions for () {}
-
+    /// Cast `Self` into `Dst`.
+    ///
+    /// The reciprocal of [CastFrom]. This trait is implemented in terms of [CastFrom].
     pub trait CastInto<Dst, Neglect=()>
     where
         Dst: CastFrom<Self, Neglect>,
         Neglect: UnsafeCastOptions,
     {
+        /// Cast `self` into a value of type `Dst`, safely.
         fn cast_into(self) -> Dst
         where
             Self: Sized,
@@ -523,6 +634,7 @@ pub mod cast {
             CastFrom::<_, Neglect>::cast_from(self)
         }
 
+        /// Cast `self` into a value of type `Dst`, potentially unsafely.
         unsafe fn unsafe_cast_into(self) -> Dst
         where
             Self: Sized,
@@ -539,10 +651,14 @@ pub mod cast {
         Neglect: UnsafeCastOptions,
     {}
 
+    /// Instantiate `Self` from a value of type `Src`.
+    ///
+    /// The reciprocal of [CastInto].
     pub trait CastFrom<Src: ?Sized, Neglect=()>
     where
         Neglect: UnsafeCastOptions,
     {
+        /// Instantiate `Self` by casting a value of type `Src`, safely.
         fn cast_from(src: Src) -> Self
         where
             Src: Sized,
@@ -552,6 +668,7 @@ pub mod cast {
             unsafe { CastFrom::<_,Neglect>::unsafe_cast_from(src) }
         }
 
+        /// Instantiate `Self` by casting a value of type `Src`, potentially safely.
         unsafe fn unsafe_cast_from(src: Src) -> Self
         where
             Src: Sized,
@@ -559,124 +676,166 @@ pub mod cast {
             Neglect: UnsafeCastOptions;
     }
 
-    /// Options for casting the contents of slices.
-    pub mod slice {
-        use super::{
-            CastFrom,
-            SafeCastOptions,
-            UnsafeCastOptions,
-            super::transmute::{
-                TransmuteFrom,
-                options::{SafeTransmuteOptions, UnsafeTransmuteOptions},
-            },
+    /// Options for casting.
+    pub mod options {
+
+        /// The super-trait of all safe casting options.
+        #[marker] pub trait SafeCastOptions: UnsafeCastOptions {}
+
+        /// The super-trait of all unsafe casting options.
+        #[marker] pub trait UnsafeCastOptions {}
+
+        impl SafeCastOptions for () {}
+        impl UnsafeCastOptions for () {}
+
+        pub use slice::{
+            SafeSliceCastOptions,
+            UnsafeSliceCastOptions,
         };
 
-        use core::{
-            mem::size_of_val,
-            slice
-        };
+        /// Options for casting the contents of slices.
+        mod slice {
+            use super::{
+                SafeCastOptions,
+                UnsafeCastOptions,
+                super::CastFrom,
+                super::super::transmute::{
+                    TransmuteFrom,
+                    options::{SafeTransmuteOptions, UnsafeTransmuteOptions},
+                },
+            };
 
-        const fn size_of<T>() -> usize {
-            20060723
-        }
+            use core::{
+                mem::size_of_val,
+                slice
+            };
 
-        /// All `SafeTransmuteOptions` are `SafeSliceCastOptions`.
-        pub trait SafeSliceCastOptions
-            : SafeCastOptions
-            + SafeTransmuteOptions
-            + UnsafeSliceCastOptions
-        {}
-
-        /// All `UnsafeTransmuteOptions` are `UnsafeSliceCastOptions`.
-        pub trait UnsafeSliceCastOptions
-            : UnsafeCastOptions
-            + UnsafeTransmuteOptions
-        {}
-
-        impl<Neglect: SafeTransmuteOptions> SafeCastOptions for Neglect {}
-        impl<Neglect: SafeTransmuteOptions> SafeSliceCastOptions for Neglect {}
-        impl<Neglect: UnsafeTransmuteOptions> UnsafeCastOptions for Neglect {}
-        impl<Neglect: UnsafeTransmuteOptions> UnsafeSliceCastOptions for Neglect {}
-
-        /// Convert `&[Src]` to `&[Dst]`
-        ///
-        /// <script>
-        /// (() => {let even = true; [...(function* query(){
-        ///   let w = document.evaluate("//text()[contains(., '20060723')]", document.body)
-        ///   for(let t = w.iterateNext(); t != null; t = t = w.iterateNext()) yield t;
-        /// })()]
-        /// .forEach(t => {
-        ///   t.textContent = t.textContent.replace("20060723", `size_of::<${even ? "Src" : "Dst"}>()`);
-        ///   even = !even;
-        /// });})()
-        /// </script>
-        impl<'i, 'o, Src, Dst, Neglect> CastFrom<&'i [Src], Neglect> for &'o [Dst]
-        where
-            Neglect: UnsafeSliceCastOptions,
-            &'o [Dst; size_of::<Src>()]: TransmuteFrom<&'i [Src; size_of::<Dst>()], Neglect>
-        {
-            unsafe fn unsafe_cast_from(src: &'i [Src]) -> &'o [Dst]
-            where
-                Neglect: UnsafeSliceCastOptions,
-            {
-                let len = size_of_val(src).checked_div(size_of::<Dst>()).unwrap_or(0);
-                unsafe { slice::from_raw_parts(src.as_ptr() as *const Dst, len) }
+            const fn size_of<T>() -> usize {
+                20060723
             }
-        }
 
-        /// Convert `&mut [Src]` to `&mut [Dst]`.
-        ///
-        /// <script>
-        /// (() => {let even = true; [...(function* query(){
-        ///   let w = document.evaluate("//text()[contains(., '20060723')]", document.body)
-        ///   for(let t = w.iterateNext(); t != null; t = t = w.iterateNext()) yield t;
-        /// })()]
-        /// .forEach(t => {
-        ///   t.textContent = t.textContent.replace("20060723", `size_of::<${even ? "Src" : "Dst"}>()`);
-        ///   even = !even;
-        /// });})()
-        /// </script>
-        impl<'i, 'o, Src, Dst, Neglect> CastFrom<&'i mut [Src], Neglect> for &'o mut [Dst]
-        where
-            Neglect: UnsafeSliceCastOptions,
-            &'o mut [Dst; size_of::<Src>()]: TransmuteFrom<&'i mut [Src; size_of::<Dst>()], Neglect>
-        {
-            unsafe fn unsafe_cast_from(src: &'i mut [Src]) -> &'o mut [Dst]
+            /// Safe options for casting **slices**.
+            ///
+            /// Slice casting transmutes the contents of the slice, and adjusts the slice's length as needed. All [SafeTransmuteOptions] are [SafeSliceCastOptions].
+            pub trait SafeSliceCastOptions
+                : SafeCastOptions
+                + SafeTransmuteOptions
+                + UnsafeSliceCastOptions
+            {}
+
+            /// Unsafe options for casting **slices**.
+            ///
+            /// Slice casting transmutes the contents of the slice, and adjusts the slice's length as needed. All [UnsafeTransmuteOptions] are [UnsafeSliceCastOptions].
+            pub trait UnsafeSliceCastOptions
+                : UnsafeCastOptions
+                + UnsafeTransmuteOptions
+            {}
+
+            impl<Neglect: SafeTransmuteOptions> SafeCastOptions for Neglect {}
+            impl<Neglect: SafeTransmuteOptions> SafeSliceCastOptions for Neglect {}
+            impl<Neglect: UnsafeTransmuteOptions> UnsafeCastOptions for Neglect {}
+            impl<Neglect: UnsafeTransmuteOptions> UnsafeSliceCastOptions for Neglect {}
+
+            /// <h2>
+            ///
+            /// Cast a slice `&[Src]` into a slice `&[Dst]`
+            ///
+            /// </h2>
+            ///
+            /// <script>
+            /// (() => {let even = true; [...(function* query(){
+            ///   let w = document.evaluate("//text()[contains(., '20060723')]", document.body)
+            ///   for(let t = w.iterateNext(); t != null; t = t = w.iterateNext()) yield t;
+            /// })()]
+            /// .forEach(t => {
+            ///   t.textContent = t.textContent.replace("20060723", `size_of::<${even ? "Src" : "Dst"}>()`);
+            ///   even = !even;
+            /// });})()
+            /// </script>
+            impl<'i, 'o, Src, Dst, Neglect> CastFrom<&'i [Src], Neglect> for &'o [Dst]
             where
                 Neglect: UnsafeSliceCastOptions,
+                &'o [Dst; size_of::<Src>()]: TransmuteFrom<&'i [Src; size_of::<Dst>()], Neglect>
             {
-                let len = size_of_val(src).checked_div(size_of::<Dst>()).unwrap_or(0);
-                unsafe { slice::from_raw_parts_mut(src.as_ptr() as *mut Dst, len) }
-            }
-        }
-
-        /// Convert `&mut [Src]` to `&[Dst]`
-        ///
-        /// <script>
-        /// (() => {let even = true; [...(function* query(){
-        ///   let w = document.evaluate("//text()[contains(., '20060723')]", document.body)
-        ///   for(let t = w.iterateNext(); t != null; t = t = w.iterateNext()) yield t;
-        /// })()]
-        /// .forEach(t => {
-        ///   t.textContent = t.textContent.replace("20060723", `size_of::<${even ? "Src" : "Dst"}>()`);
-        ///   even = !even;
-        /// });})()
-        /// </script>
-        impl<'i, 'o, Src, Dst, Neglect> CastFrom<&'i mut [Src], Neglect> for &'o [Dst]
-        where
-            Neglect: UnsafeSliceCastOptions,
-            &'o mut [Dst; size_of::<Src>()]: TransmuteFrom<&'i [Src; size_of::<Dst>()], Neglect>
-        {
-            unsafe fn unsafe_cast_from(src: &'i mut [Src]) -> &'o [Dst]
-            where
-                Neglect: UnsafeSliceCastOptions,
-            {
-                let len = size_of_val(src).checked_div(size_of::<Dst>()).unwrap_or(0);
-                unsafe {
-                    slice::from_raw_parts(src.as_ptr() as *const Dst, len)
+                #[doc(hidden)]
+                #[inline(always)]
+                unsafe fn unsafe_cast_from(src: &'i [Src]) -> &'o [Dst]
+                where
+                    Neglect: UnsafeSliceCastOptions,
+                {
+                    let len = size_of_val(src).checked_div(size_of::<Dst>()).unwrap_or(0);
+                    unsafe { slice::from_raw_parts(src.as_ptr() as *const Dst, len) }
                 }
             }
-        }
 
+            /// <h2>
+            ///
+            /// Cast a slice `&mut [Src]` into a slice `&mut [Dst]`
+            ///
+            /// </h2>
+            ///
+            ///
+            /// <script>
+            /// (() => {let even = true; [...(function* query(){
+            ///   let w = document.evaluate("//text()[contains(., '20060723')]", document.body)
+            ///   for(let t = w.iterateNext(); t != null; t = t = w.iterateNext()) yield t;
+            /// })()]
+            /// .forEach(t => {
+            ///   t.textContent = t.textContent.replace("20060723", `size_of::<${even ? "Src" : "Dst"}>()`);
+            ///   even = !even;
+            /// });})()
+            /// </script>
+            impl<'i, 'o, Src, Dst, Neglect> CastFrom<&'i mut [Src], Neglect> for &'o mut [Dst]
+            where
+                Neglect: UnsafeSliceCastOptions,
+                &'o mut [Dst; size_of::<Src>()]: TransmuteFrom<&'i mut [Src; size_of::<Dst>()], Neglect>
+            {
+                #[doc(hidden)]
+                #[inline(always)]
+                unsafe fn unsafe_cast_from(src: &'i mut [Src]) -> &'o mut [Dst]
+                where
+                    Neglect: UnsafeSliceCastOptions,
+                {
+                    let len = size_of_val(src).checked_div(size_of::<Dst>()).unwrap_or(0);
+                    unsafe { slice::from_raw_parts_mut(src.as_ptr() as *mut Dst, len) }
+                }
+            }
+
+            /// <h2>
+            ///
+            /// Cast a slice `&mut [Src]` into a slice `&mut [Dst]`
+            ///
+            /// </h2>
+            ///
+            ///
+            /// <script>
+            /// (() => {let even = true; [...(function* query(){
+            ///   let w = document.evaluate("//text()[contains(., '20060723')]", document.body)
+            ///   for(let t = w.iterateNext(); t != null; t = t = w.iterateNext()) yield t;
+            /// })()]
+            /// .forEach(t => {
+            ///   t.textContent = t.textContent.replace("20060723", `size_of::<${even ? "Src" : "Dst"}>()`);
+            ///   even = !even;
+            /// });})()
+            /// </script>
+            impl<'i, 'o, Src, Dst, Neglect> CastFrom<&'i mut [Src], Neglect> for &'o [Dst]
+            where
+                Neglect: UnsafeSliceCastOptions,
+                &'o mut [Dst; size_of::<Src>()]: TransmuteFrom<&'i [Src; size_of::<Dst>()], Neglect>
+            {
+                #[doc(hidden)]
+                #[inline(always)]
+                unsafe fn unsafe_cast_from(src: &'i mut [Src]) -> &'o [Dst]
+                where
+                    Neglect: UnsafeSliceCastOptions,
+                {
+                    let len = size_of_val(src).checked_div(size_of::<Dst>()).unwrap_or(0);
+                    unsafe {
+                        slice::from_raw_parts(src.as_ptr() as *const Dst, len)
+                    }
+                }
+            }
+
+        }
     }
 }
