@@ -840,6 +840,36 @@
 <span id="839">839</span>
 <span id="840">840</span>
 <span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">const_generics</span>)]</span> <span class="comment">// for stability declarations on `[T; N]`</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">decl_macro</span>)]</span> <span class="comment">// for stub implementations of derives</span>
@@ -871,6 +901,36 @@
 <span class="doccomment">///  - A safe transmutation is ***stable*** if the authors of the source type and destination types [have indicated that the layouts of those types is part of their libraries&#39; stability guarantees][stability].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// For more information on these concepts [**see here**](https://github.com/jswrenn/project-safe-transmute/blob/rfc/rfcs/0000-safe-transmute.md#concepts-in-depth).</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// ## Example</span>
+<span class="doccomment">/// Given:</span>
+<span class="doccomment">/// ```rust</span>
+<span class="doccomment">/// use core::convert::transmute::{</span>
+<span class="doccomment">///     TransmuteInto,</span>
+<span class="doccomment">///     stability::{PromiseTransmutableInto, PromiseTransmutableFrom},</span>
+<span class="doccomment">/// };</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// #[derive(PromiseTransmutableInto, PromiseTransmutableFrom)]</span>
+<span class="doccomment">/// #[repr(C)]</span>
+<span class="doccomment">/// pub struct Foo(pub u8, pub u16);</span>
+<span class="doccomment">/// //                    ^ there&#39;s a padding byte here, between these fields</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">/// This transmutation accepted:</span>
+<span class="doccomment">/// ```rust</span>
+<span class="doccomment">/// let _ : Foo = 64u32.transmute_into(); // Alchemy Achieved!</span>
+<span class="doccomment">/// //                  ^^^^^^^^^^^^^^ provided by the `TransmuteInto` trait</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">/// But this transmutation is rejected:</span>
+<span class="doccomment">/// ```compile_fail</span>
+<span class="doccomment">/// let _ : u32 = Foo(16, 12).transmute_into();</span>
+<span class="doccomment">/// // error[E0277]: the trait bound `u32: TransmuteFrom&lt;Foo, _&gt;` is not satisfied</span>
+<span class="doccomment">/// //   --&gt; src/demo.rs:15:27</span>
+<span class="doccomment">/// //    |</span>
+<span class="doccomment">/// // 15 | let _ : u32 = Foo(16, 12).transmute_into();</span>
+<span class="doccomment">/// //    |                           ^^^^^^^^^^^^^^ the trait `TransmuteFrom&lt;foo::Foo, _&gt;` is not implemented for `u32`</span>
+<span class="doccomment">/// //    |</span>
+<span class="doccomment">/// //   = note: required because of the requirements on the impl of `TransmuteInto&lt;u32, _&gt;` for `foo::Foo`</span>
+<span class="doccomment">/// ```</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">transmute</span> {
     <span class="kw">use</span> {<span class="ident">options</span>::<span class="kw-2">*</span>, <span class="ident">stability</span>::<span class="kw-2">*</span>};
 
