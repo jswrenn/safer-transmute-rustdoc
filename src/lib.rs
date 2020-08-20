@@ -4,7 +4,6 @@
 #![feature(const_fn, const_panic)] // for const free functions
 #![feature(marker_trait_attr)] // for cast extension
 #![feature(staged_api)] // for `unstable` attribute
-#![no_std]
 #![allow(unused_unsafe, incomplete_features)]
 #![deny(missing_docs)]
 
@@ -628,7 +627,8 @@ pub mod transmute {
 
             impl Sealed for () {}
             impl Sealed for NeglectStability {}
-            /* impl Sealed for NeglectAlignment {} */
+            impl Sealed for NeglectAlignment {}
+            impl Sealed for NeglectValidity {}
 
             /* FILL: Implementations for tuple combinations of options */
         }
@@ -867,5 +867,69 @@ pub mod cast {
             }
 
         }
+
+        // Options for casting the contents of slices.
+        mod vec {
+            use super::{
+                SafeCastOptions,
+                UnsafeCastOptions,
+                slice::{SafeSliceCastOptions, UnsafeSliceCastOptions},
+                super::CastFrom,
+                super::super::transmute::{
+                    TransmuteFrom,
+                    options::{SafeTransmuteOptions, UnsafeTransmuteOptions},
+                },
+            };
+
+            /// Safe options for casting **Vec**.
+            ///
+            /// Vec casting transmutes the contents of the slice, and adjusts the slice's length as needed. All [SafeTransmuteOptions] are [SafeVecCastOptions].
+            pub trait SafeVecCastOptions
+                : SafeSliceCastOptions
+                + SafeTransmuteOptions
+                + UnsafeVecCastOptions
+            {}
+
+            /// Unsafe options for casting **Vec**.
+            ///
+            /// Vec casting transmutes the contents of the slice, and adjusts the slice's length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].
+            pub trait UnsafeVecCastOptions
+                : UnsafeSliceCastOptions
+                + UnsafeTransmuteOptions
+                + UnsafeCastOptions
+            {}
+
+            impl<Neglect: SafeSliceCastOptions> SafeVecCastOptions for Neglect {}
+            impl<Neglect: UnsafeSliceCastOptions> UnsafeVecCastOptions for Neglect {}
+
+            /// <h2>
+            ///
+            /// Cast a slice `Vec<Src>` into a slice `Vec<Dst>`
+            ///
+            /// </h2>
+            impl<Src, Dst, Neglect> CastFrom<Vec<Src>, Neglect> for Vec<Dst>
+            where
+                Neglect: UnsafeVecCastOptions,
+                for<'a> &'a mut [Dst]: CastFrom<&'a mut [Src], Neglect>
+            {
+                #[doc(hidden)]
+                #[inline(always)]
+                unsafe fn unsafe_cast_from(mut src: Vec<Src>) -> Vec<Dst>
+                where
+                    Neglect: UnsafeVecCastOptions,
+                {
+                    let dst: &mut [Dst] = CastFrom::unsafe_cast_from(&mut src[..]);
+                    let ptr = dst.as_mut_ptr();
+                    let len = dst.len();
+
+                    let size = core::mem::size_of::<Src>();
+                    let capacity = src.capacity().checked_div(size).unwrap_or(len);
+
+                    core::mem::forget(src);
+                    Vec::from_raw_parts(ptr, len, capacity)
+                }
+            }
+        }
+
     }
 }
