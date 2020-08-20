@@ -935,10 +935,6 @@
 <span id="934">934</span>
 <span id="935">935</span>
 <span id="936">936</span>
-<span id="937">937</span>
-<span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">const_generics</span>)]</span> <span class="comment">// for stability declarations on `[T; N]`</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">decl_macro</span>)]</span> <span class="comment">// for stub implementations of derives</span>
@@ -946,8 +942,10 @@
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">const_fn</span>, <span class="ident">const_panic</span>)]</span> <span class="comment">// for const free functions</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">marker_trait_attr</span>)]</span> <span class="comment">// for cast extension</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">staged_api</span>)]</span> <span class="comment">// for `unstable` attribute</span>
+<span class="attribute">#![<span class="ident">feature</span>(<span class="ident">vec_into_raw_parts</span>)]</span> <span class="comment">// for vec casting demo</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">unused_unsafe</span>, <span class="ident">incomplete_features</span>)]</span>
 <span class="attribute">#![<span class="ident">deny</span>(<span class="ident">missing_docs</span>)]</span>
+
 
 <span class="doccomment">//! Rustdoc for the API surface proposed by the [safer transmute RFC](https://github.com/rust-lang/project-safe-transmute/pull/5).</span>
 
@@ -1832,22 +1830,20 @@
             <span class="doccomment">///</span>
             <span class="doccomment">/// Vec casting transmutes the contents of the vec, and adjusts the vec&#39;s length as needed. All [SafeTransmuteOptions] are [SafeVecCastOptions].</span>
             <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SafeVecCastOptions</span>
-                : <span class="ident">SafeSliceCastOptions</span>
-                <span class="op">+</span> <span class="ident">SafeTransmuteOptions</span>
-                <span class="op">+</span> <span class="ident">UnsafeVecCastOptions</span>
+                : <span class="ident">UnsafeVecCastOptions</span>
             {}
 
             <span class="doccomment">/// Unsafe options for casting **Vec**.</span>
             <span class="doccomment">///</span>
             <span class="doccomment">/// Vec casting transmutes the contents of the vec, and adjusts the vec&#39;s length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].</span>
             <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">UnsafeVecCastOptions</span>
-                : <span class="ident">UnsafeSliceCastOptions</span>
-                <span class="op">+</span> <span class="ident">UnsafeTransmuteOptions</span>
-                <span class="op">+</span> <span class="ident">UnsafeCastOptions</span>
+                : <span class="ident">UnsafeCastOptions</span>
             {}
 
-            <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Neglect</span>: <span class="ident">SafeSliceCastOptions</span><span class="op">&gt;</span> <span class="ident">SafeVecCastOptions</span> <span class="kw">for</span> <span class="ident">Neglect</span> {}
-            <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Neglect</span>: <span class="ident">UnsafeSliceCastOptions</span><span class="op">&gt;</span> <span class="ident">UnsafeVecCastOptions</span> <span class="kw">for</span> <span class="ident">Neglect</span> {}
+            <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Neglect</span>: <span class="ident">SafeTransmuteOptions</span><span class="op">&gt;</span> <span class="ident">SafeVecCastOptions</span> <span class="kw">for</span> <span class="ident">Neglect</span> {}
+            <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Neglect</span>: <span class="ident">UnsafeTransmuteOptions</span><span class="op">&gt;</span> <span class="ident">UnsafeVecCastOptions</span> <span class="kw">for</span> <span class="ident">Neglect</span> {}
+
+            <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">mem</span>::<span class="ident">MaybeUninit</span>;
 
             <span class="doccomment">/// &lt;h2&gt;</span>
             <span class="doccomment">///</span>
@@ -1857,23 +1853,19 @@
             <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Src</span>, <span class="ident">Dst</span>, <span class="ident">Neglect</span><span class="op">&gt;</span> <span class="ident">CastFrom</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Src</span><span class="op">&gt;</span>, <span class="ident">Neglect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Dst</span><span class="op">&gt;</span>
             <span class="kw">where</span>
                 <span class="ident">Neglect</span>: <span class="ident">UnsafeVecCastOptions</span>,
-                <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">Dst</span>]: <span class="ident">CastFrom</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">Src</span>], <span class="ident">Neglect</span><span class="op">&gt;</span>
+                <span class="ident">Dst</span>: <span class="ident">TransmuteFrom</span><span class="op">&lt;</span><span class="ident">Src</span><span class="op">&gt;</span>,
+                <span class="comment">// ensure that the size and alignment are exactly equal</span>
+                <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="ident">Src</span><span class="op">&gt;</span>: <span class="ident">TransmuteFrom</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Dst</span><span class="op">&gt;</span>,
+                <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Dst</span>: <span class="ident">TransmuteFrom</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Src</span><span class="op">&gt;</span>,
             {
                 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
                 <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
-                <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">unsafe_cast_from</span>(<span class="kw-2">mut</span> <span class="ident">src</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Src</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Dst</span><span class="op">&gt;</span>
+                <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">unsafe_cast_from</span>(<span class="ident">src</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Src</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Dst</span><span class="op">&gt;</span>
                 <span class="kw">where</span>
                     <span class="ident">Neglect</span>: <span class="ident">UnsafeVecCastOptions</span>,
                 {
-                    <span class="kw">let</span> <span class="ident">dst</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Dst</span>] <span class="op">=</span> <span class="ident">CastFrom</span>::<span class="ident">unsafe_cast_from</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">src</span>[..]);
-                    <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="ident">dst</span>.<span class="ident">as_mut_ptr</span>();
-                    <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">dst</span>.<span class="ident">len</span>();
-
-                    <span class="kw">let</span> <span class="ident">size</span> <span class="op">=</span> <span class="ident">core</span>::<span class="ident">mem</span>::<span class="ident">size_of</span>::<span class="op">&lt;</span><span class="ident">Src</span><span class="op">&gt;</span>();
-                    <span class="kw">let</span> <span class="ident">capacity</span> <span class="op">=</span> <span class="ident">src</span>.<span class="ident">capacity</span>().<span class="ident">checked_div</span>(<span class="ident">size</span>).<span class="ident">unwrap_or</span>(<span class="ident">len</span>);
-
-                    <span class="ident">core</span>::<span class="ident">mem</span>::<span class="ident">forget</span>(<span class="ident">src</span>);
-                    <span class="ident">Vec</span>::<span class="ident">from_raw_parts</span>(<span class="ident">ptr</span>, <span class="ident">len</span>, <span class="ident">capacity</span>)
+                    <span class="kw">let</span> (<span class="ident">ptr</span>, <span class="ident">len</span>, <span class="ident">cap</span>) <span class="op">=</span> <span class="ident">src</span>.<span class="ident">into_raw_parts</span>();
+                    <span class="ident">Vec</span>::<span class="ident">from_raw_parts</span>(<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">Dst</span>, <span class="ident">len</span>, <span class="ident">cap</span>)
                 }
             }
         }
