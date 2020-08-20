@@ -723,6 +723,11 @@ pub mod cast {
             UnsafeSliceCastOptions,
         };
 
+        pub use vec::{
+            SafeVecCastOptions,
+            UnsafeVecCastOptions,
+        };
+
         /// Options for casting the contents of slices.
         mod slice {
             use super::{
@@ -868,7 +873,7 @@ pub mod cast {
 
         }
 
-        // Options for casting the contents of slices.
+        // Options for casting the contents of vecs.
         mod vec {
             use super::{
                 SafeCastOptions,
@@ -883,7 +888,7 @@ pub mod cast {
 
             /// Safe options for casting **Vec**.
             ///
-            /// Vec casting transmutes the contents of the slice, and adjusts the slice's length as needed. All [SafeTransmuteOptions] are [SafeVecCastOptions].
+            /// Vec casting transmutes the contents of the vec, and adjusts the vec's length as needed. All [SafeTransmuteOptions] are [SafeVecCastOptions].
             pub trait SafeVecCastOptions
                 : SafeSliceCastOptions
                 + SafeTransmuteOptions
@@ -892,7 +897,7 @@ pub mod cast {
 
             /// Unsafe options for casting **Vec**.
             ///
-            /// Vec casting transmutes the contents of the slice, and adjusts the slice's length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].
+            /// Vec casting transmutes the contents of the vec, and adjusts the vec's length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].
             pub trait UnsafeVecCastOptions
                 : UnsafeSliceCastOptions
                 + UnsafeTransmuteOptions
@@ -904,7 +909,7 @@ pub mod cast {
 
             /// <h2>
             ///
-            /// Cast a slice `Vec<Src>` into a slice `Vec<Dst>`
+            /// Cast a `Vec<Src>` into a `Vec<Dst>`
             ///
             /// </h2>
             impl<Src, Dst, Neglect> CastFrom<Vec<Src>, Neglect> for Vec<Dst>
