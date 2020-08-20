@@ -4,8 +4,10 @@
 #![feature(const_fn, const_panic)] // for const free functions
 #![feature(marker_trait_attr)] // for cast extension
 #![feature(staged_api)] // for `unstable` attribute
+#![feature(vec_into_raw_parts)] // for vec casting demo
 #![allow(unused_unsafe, incomplete_features)]
 #![deny(missing_docs)]
+
 
 //! Rustdoc for the API surface proposed by the [safer transmute RFC](https://github.com/rust-lang/project-safe-transmute/pull/5).
 
@@ -890,22 +892,20 @@ pub mod cast {
             ///
             /// Vec casting transmutes the contents of the vec, and adjusts the vec's length as needed. All [SafeTransmuteOptions] are [SafeVecCastOptions].
             pub trait SafeVecCastOptions
-                : SafeSliceCastOptions
-                + SafeTransmuteOptions
-                + UnsafeVecCastOptions
+                : UnsafeVecCastOptions
             {}
 
             /// Unsafe options for casting **Vec**.
             ///
             /// Vec casting transmutes the contents of the vec, and adjusts the vec's length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].
             pub trait UnsafeVecCastOptions
-                : UnsafeSliceCastOptions
-                + UnsafeTransmuteOptions
-                + UnsafeCastOptions
+                : UnsafeCastOptions
             {}
 
-            impl<Neglect: SafeSliceCastOptions> SafeVecCastOptions for Neglect {}
-            impl<Neglect: UnsafeSliceCastOptions> UnsafeVecCastOptions for Neglect {}
+            impl<Neglect: SafeTransmuteOptions> SafeVecCastOptions for Neglect {}
+            impl<Neglect: UnsafeTransmuteOptions> UnsafeVecCastOptions for Neglect {}
+
+            use core::mem::MaybeUninit;
 
             /// <h2>
             ///
@@ -915,23 +915,19 @@ pub mod cast {
             impl<Src, Dst, Neglect> CastFrom<Vec<Src>, Neglect> for Vec<Dst>
             where
                 Neglect: UnsafeVecCastOptions,
-                for<'a> &'a mut [Dst]: CastFrom<&'a mut [Src], Neglect>
+                Dst: TransmuteFrom<Src>,
+                // ensure that the size and alignment are exactly equal
+                for<'a> &'a mut MaybeUninit<Src>: TransmuteFrom<&'a mut Dst>,
+                for<'a> &'a mut Dst: TransmuteFrom<&'a mut Src>,
             {
                 #[doc(hidden)]
                 #[inline(always)]
-                unsafe fn unsafe_cast_from(mut src: Vec<Src>) -> Vec<Dst>
+                unsafe fn unsafe_cast_from(src: Vec<Src>) -> Vec<Dst>
                 where
                     Neglect: UnsafeVecCastOptions,
                 {
-                    let dst: &mut [Dst] = CastFrom::unsafe_cast_from(&mut src[..]);
-                    let ptr = dst.as_mut_ptr();
-                    let len = dst.len();
-
-                    let size = core::mem::size_of::<Src>();
-                    let capacity = src.capacity().checked_div(size).unwrap_or(len);
-
-                    core::mem::forget(src);
-                    Vec::from_raw_parts(ptr, len, capacity)
+                    let (ptr, len, cap) = src.into_raw_parts();
+                    Vec::from_raw_parts(ptr as *mut Dst, len, cap)
                 }
             }
         }
