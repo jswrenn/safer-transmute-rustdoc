@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["AlignEq","Implemented if `align_of::<Self>() == align_of::<Rhs>()`"],["AlignLtEq","Implemented if `align_of::<Self>() <= align_of::<Rhs>()`"],["SizeEq","Implemented if `size_of::<Self>() == size_of::<Rhs>()`"],["SizeLtEq","Implemented if `size_of::<Self>() <= size_of::<Rhs>()`"]]});
