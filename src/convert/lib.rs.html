@@ -934,6 +934,11 @@
 <span id="933">933</span>
 <span id="934">934</span>
 <span id="935">935</span>
+<span id="936">936</span>
+<span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">const_generics</span>)]</span> <span class="comment">// for stability declarations on `[T; N]`</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">decl_macro</span>)]</span> <span class="comment">// for stub implementations of derives</span>
@@ -1660,6 +1665,11 @@
             <span class="ident">UnsafeSliceCastOptions</span>,
         };
 
+        <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">vec</span>::{
+            <span class="ident">SafeVecCastOptions</span>,
+            <span class="ident">UnsafeVecCastOptions</span>,
+        };
+
         <span class="doccomment">/// Options for casting the contents of slices.</span>
         <span class="kw">mod</span> <span class="ident">slice</span> {
             <span class="kw">use</span> <span class="kw">super</span>::{
@@ -1805,7 +1815,7 @@
 
         }
 
-        <span class="comment">// Options for casting the contents of slices.</span>
+        <span class="comment">// Options for casting the contents of vecs.</span>
         <span class="kw">mod</span> <span class="ident">vec</span> {
             <span class="kw">use</span> <span class="kw">super</span>::{
                 <span class="ident">SafeCastOptions</span>,
@@ -1820,7 +1830,7 @@
 
             <span class="doccomment">/// Safe options for casting **Vec**.</span>
             <span class="doccomment">///</span>
-            <span class="doccomment">/// Vec casting transmutes the contents of the slice, and adjusts the slice&#39;s length as needed. All [SafeTransmuteOptions] are [SafeVecCastOptions].</span>
+            <span class="doccomment">/// Vec casting transmutes the contents of the vec, and adjusts the vec&#39;s length as needed. All [SafeTransmuteOptions] are [SafeVecCastOptions].</span>
             <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SafeVecCastOptions</span>
                 : <span class="ident">SafeSliceCastOptions</span>
                 <span class="op">+</span> <span class="ident">SafeTransmuteOptions</span>
@@ -1829,7 +1839,7 @@
 
             <span class="doccomment">/// Unsafe options for casting **Vec**.</span>
             <span class="doccomment">///</span>
-            <span class="doccomment">/// Vec casting transmutes the contents of the slice, and adjusts the slice&#39;s length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].</span>
+            <span class="doccomment">/// Vec casting transmutes the contents of the vec, and adjusts the vec&#39;s length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].</span>
             <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">UnsafeVecCastOptions</span>
                 : <span class="ident">UnsafeSliceCastOptions</span>
                 <span class="op">+</span> <span class="ident">UnsafeTransmuteOptions</span>
@@ -1841,7 +1851,7 @@
 
             <span class="doccomment">/// &lt;h2&gt;</span>
             <span class="doccomment">///</span>
-            <span class="doccomment">/// Cast a slice `Vec&lt;Src&gt;` into a slice `Vec&lt;Dst&gt;`</span>
+            <span class="doccomment">/// Cast a `Vec&lt;Src&gt;` into a `Vec&lt;Dst&gt;`</span>
             <span class="doccomment">///</span>
             <span class="doccomment">/// &lt;/h2&gt;</span>
             <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Src</span>, <span class="ident">Dst</span>, <span class="ident">Neglect</span><span class="op">&gt;</span> <span class="ident">CastFrom</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Src</span><span class="op">&gt;</span>, <span class="ident">Neglect</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Dst</span><span class="op">&gt;</span>
