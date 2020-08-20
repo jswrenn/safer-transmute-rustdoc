@@ -4,6 +4,7 @@
 #![feature(const_fn, const_panic)] // for const free functions
 #![feature(marker_trait_attr)] // for cast extension
 #![feature(staged_api)] // for `unstable` attribute
+#![feature(optin_builtin_traits)] // for `mem` gadgets demo
 #![feature(vec_into_raw_parts)] // for vec casting demo
 #![allow(unused_unsafe, incomplete_features)]
 #![deny(missing_docs)]
@@ -638,6 +639,78 @@ pub mod transmute {
 
 }
 
+/// (Extension) Traits for querying layout properties.
+///
+/// The definition of these traits demonstrate how [TransmuteFrom] can be used to query properties of a type's layout.
+/// See the [`Vec` casting demonstration][cast::CastFrom#impl-CastFrom<Vec<Src>%2C%20Neglect>-for-Vec<Dst>] for an example of their use.
+#[unstable(feature = "cast", issue = "none")]
+pub mod mem {
+    use crate::transmute::{TransmuteFrom, stability::*, options::*};
+
+    /// Implemented if `align_of::<Self>() <= align_of::<Rhs>()`
+    pub trait AlignLtEq<Rhs, Neglect=()>
+    where
+        Neglect: UnsafeTransmuteOptions,
+    {}
+
+    /// By wrapping a type in a zero-sized array, we neutralize its validity and size qualities. The only quality by which `[Lhs; 0]` and `[Dst; 0]` can differ is their alignment. We check *only* if the alignment of `Lhs` is less than `Rhs` by transmuting between references of these zero-sized gadgets.
+    impl<Lhs, Rhs, Neglect> AlignLtEq<Rhs, Neglect> for Lhs
+    where
+        Neglect: UnsafeTransmuteOptions,
+        for<'a> &'a [Lhs; 0]: TransmuteFrom<&'a [Rhs; 0], Neglect>
+    {}
+
+    /// Implemented if `align_of::<Self>() == align_of::<Rhs>()`
+    pub trait AlignEq<Rhs, Neglect=()>
+    where
+        Neglect: UnsafeTransmuteOptions,
+    {}
+
+    /// See [AlignLtEq].
+    impl<Lhs, Rhs, Neglect> AlignEq<Rhs, Neglect> for Lhs
+    where
+        Neglect: UnsafeTransmuteOptions,
+        Lhs: AlignLtEq<Rhs>,
+        Rhs: AlignLtEq<Lhs>,
+    {}
+
+    use core::mem::MaybeUninit;
+
+    // The alignment of this struct is always equal to `max(align_of::<A>(), align_of::<T>())`.
+    // Its validity is always equal to `MaybeUninit<T>`.
+    // Its size equals `T`
+    /* #[derive(PromiseTransmutableFrom, PromiseTransmutableInto)] */
+    #[repr(C)]
+    struct Aligned<A, T>(pub [A; 0], pub MaybeUninit<T>);
+
+    /// Implemented if `size_of::<Self>() <= size_of::<Rhs>()`
+    pub trait SizeLtEq<Rhs, Neglect=()>
+    where
+        Neglect: UnsafeTransmuteOptions,
+    {}
+
+    /// We wrap the types in a struct that neutralizes their alignment and validity differences, leaving size as the only quality that might differ between `Aligned<Rhs, Lhs>` and `Aligned<Lhs, Rhs>`.
+    impl<Lhs, Rhs, Neglect> SizeLtEq<Rhs, Neglect> for Lhs
+    where
+        Neglect: UnsafeTransmuteOptions,
+        for<'a> &'a Aligned<Rhs, Lhs>: TransmuteFrom<&'a Aligned<Lhs, Rhs>>,
+    {}
+
+    /// Implemented if `size_of::<Self>() == size_of::<Rhs>()`
+    pub trait SizeEq<Rhs, Neglect=()>
+    where
+        Neglect: UnsafeTransmuteOptions,
+    {}
+
+    /// See [SizeLtEq].
+    impl<Lhs, Rhs, Neglect> SizeEq<Rhs, Neglect> for Lhs
+    where
+        Neglect: UnsafeTransmuteOptions,
+        Lhs: SizeLtEq<Rhs>,
+        Rhs: SizeLtEq<Lhs>,
+    {}
+}
+
 /// (Extension) Bit-altering conversions.
 ///
 /// This module demonstrates how the [transmute] API may be used (with a future iteration of const generics) to permit sound and complete slice casting.
@@ -899,26 +972,29 @@ pub mod cast {
             ///
             /// Vec casting transmutes the contents of the vec, and adjusts the vec's length as needed. All [UnsafeTransmuteOptions] are [UnsafeVecCastOptions].
             pub trait UnsafeVecCastOptions
-                : UnsafeCastOptions
+                : UnsafeTransmuteOptions
+                + UnsafeCastOptions
             {}
 
             impl<Neglect: SafeTransmuteOptions> SafeVecCastOptions for Neglect {}
             impl<Neglect: UnsafeTransmuteOptions> UnsafeVecCastOptions for Neglect {}
 
             use core::mem::MaybeUninit;
+            use crate::mem::{SizeEq, AlignEq};
 
             /// <h2>
             ///
             /// Cast a `Vec<Src>` into a `Vec<Dst>`
             ///
             /// </h2>
+            ///
+            /// [`Vec::from_raw_parts`][Vec::from_raw_parts] requires that the size and alignment of `Src` and `Dst` be equal. We can use the [AlignEq] and [SizeEq] gadgets to enforce these invariants statically.
             impl<Src, Dst, Neglect> CastFrom<Vec<Src>, Neglect> for Vec<Dst>
             where
                 Neglect: UnsafeVecCastOptions,
-                Dst: TransmuteFrom<Src>,
-                // ensure that the size and alignment are exactly equal
-                for<'a> &'a mut MaybeUninit<Src>: TransmuteFrom<&'a mut Dst>,
-                for<'a> &'a mut Dst: TransmuteFrom<&'a mut Src>,
+                Dst: TransmuteFrom<Src, Neglect>
+                   + AlignEq<Dst, Neglect>
+                   + SizeEq<Dst, Neglect>,
             {
                 #[doc(hidden)]
                 #[inline(always)]
