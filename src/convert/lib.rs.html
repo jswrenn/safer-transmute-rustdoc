@@ -2007,8 +2007,8 @@
             <span class="kw">where</span>
                 <span class="ident">Neglect</span>: <span class="ident">UnsafeVecCastOptions</span>,
                 <span class="ident">Dst</span>: <span class="ident">TransmuteFrom</span><span class="op">&lt;</span><span class="ident">Src</span>, <span class="ident">Neglect</span><span class="op">&gt;</span>
-                   <span class="op">+</span> <span class="ident">AlignEq</span><span class="op">&lt;</span><span class="ident">Dst</span>, <span class="ident">Neglect</span><span class="op">&gt;</span>
-                   <span class="op">+</span> <span class="ident">SizeEq</span><span class="op">&lt;</span><span class="ident">Dst</span>, <span class="ident">Neglect</span><span class="op">&gt;</span>,
+                   <span class="op">+</span> <span class="ident">AlignEq</span><span class="op">&lt;</span><span class="ident">Src</span>, <span class="ident">Neglect</span><span class="op">&gt;</span>
+                   <span class="op">+</span> <span class="ident">SizeEq</span><span class="op">&lt;</span><span class="ident">Src</span>, <span class="ident">Neglect</span><span class="op">&gt;</span>,
             {
                 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
                 <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
