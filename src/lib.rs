@@ -993,8 +993,8 @@ pub mod cast {
             where
                 Neglect: UnsafeVecCastOptions,
                 Dst: TransmuteFrom<Src, Neglect>
-                   + AlignEq<Dst, Neglect>
-                   + SizeEq<Dst, Neglect>,
+                   + AlignEq<Src, Neglect>
+                   + SizeEq<Src, Neglect>,
             {
                 #[doc(hidden)]
                 #[inline(always)]
