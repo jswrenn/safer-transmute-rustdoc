@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["SafeVecCastOptions","🌟 Safe options for casting `Vec<T>` to `Vec<U>`."],["VecCastOptions","🌟 Options for casting `Vec<T>` to `Vec<U>`."]]});

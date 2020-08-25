@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["options","Static checks that may be neglected when determining if two types are transmutable."],["stability","Traits for declaring the SemVer stability of a type's layout."]],"trait":[["TransmuteFrom","Reinterpret the bits of `Src` as a type `Self`."],["TransmuteInto","Reinterpret the bits of `Self` as a type `Dst`."]]});

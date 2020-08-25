@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["vec","A contiguous growable array type with heap-allocated contents, `Vec<T>`."]]});

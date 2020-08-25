@@ -1,3 +1,3 @@
 (function() {var implementors = {};
-implementors["convert"] = [{"text":"impl RefUnwindSafe for NeglectStability","synthetic":true,"types":[]},{"text":"impl RefUnwindSafe for NeglectAlignment","synthetic":true,"types":[]},{"text":"impl RefUnwindSafe for NeglectValidity","synthetic":true,"types":[]}];
+implementors["rfc"] = [{"text":"impl RefUnwindSafe for NeglectStability","synthetic":true,"types":[]},{"text":"impl RefUnwindSafe for NeglectAlignment","synthetic":true,"types":[]},{"text":"impl RefUnwindSafe for NeglectValidity","synthetic":true,"types":[]}];
 if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
