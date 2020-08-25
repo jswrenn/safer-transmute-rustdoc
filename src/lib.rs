@@ -74,7 +74,7 @@ pub mod core {
         /// ```
         pub mod transmute {
             use {options::*, stability::*};
-            /*
+
             /// Reinterprets the bits of a value of one type as another type, safely.
             #[inline(always)]
             pub const fn safe_transmute<Src, Dst, Neglect>(src: Src) -> Dst
@@ -93,7 +93,7 @@ pub mod core {
                 Neglect: TransmuteOptions
             {
                 unimplemented!()
-            }*/
+            }
 
             /// Reinterpret the bits of `Self` as a type `Dst`.
             ///
