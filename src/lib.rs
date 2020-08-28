@@ -1,7 +1,7 @@
+#![feature(untagged_unions,const_fn,const_fn_union)] // for the impl of transmute free functions
 #![feature(const_generics)] // for stability declarations on `[T; N]`
 #![feature(decl_macro)] // for stub implementations of derives
 #![feature(never_type)] // for stability declarations on `!`
-#![feature(const_fn, const_panic)] // for const free functions
 #![feature(marker_trait_attr)] // for cast extension
 #![cfg_attr(doc, feature(staged_api))] // for `unstable` attribute
 #![feature(optin_builtin_traits)] // for `mem` gadgets demo
@@ -76,23 +76,37 @@ pub mod core {
             use {options::*, stability::*};
 
             /// Reinterprets the bits of a value of one type as another type, safely.
+            ///
+            /// Use `()` as `Neglect` to omit *no* static checks.
             #[inline(always)]
             pub const fn safe_transmute<Src, Dst, Neglect>(src: Src) -> Dst
             where
                 Src: TransmuteInto<Dst, Neglect>,
                 Neglect: SafeTransmuteOptions
             {
-                unimplemented!()
+                unsafe { unsafe_transmute::<Src, Dst, Neglect>(src) }
             }
 
             /// Reinterprets the bits of a value of one type as another type, potentially unsafely.
+            ///
+            /// The onus is on you to ensure that calling this method is safe.
             #[inline(always)]
             pub const unsafe fn unsafe_transmute<Src, Dst, Neglect>(src: Src) -> Dst
             where
                 Src: TransmuteInto<Dst, Neglect>,
                 Neglect: TransmuteOptions
             {
-                unimplemented!()
+                use core::mem::ManuallyDrop;
+
+                #[repr(C)]
+                union Transmute<Src, Dst> {
+                    src: ManuallyDrop<Src>,
+                    dst: ManuallyDrop<Dst>,
+                }
+
+                unsafe {
+                    ManuallyDrop::into_inner(Transmute { src: ManuallyDrop::new(src) }.dst)
+                }
             }
 
             /// Reinterpret the bits of `Self` as a type `Dst`.
@@ -165,12 +179,7 @@ pub mod core {
                     Self: Sized,
                     Neglect: SafeTransmuteOptions,
                 {
-                    use core::{mem, ptr};
-                    unsafe {
-                        let dst = ptr::read(&src as *const Src as *const Self);
-                        mem::forget(src);
-                        dst
-                    }
+                    unsafe { Self::unsafe_transmute_from(src) }
                 }
 
                 /// Reinterpret the bits of a value of one type as another type, potentially unsafely.
@@ -183,12 +192,7 @@ pub mod core {
                     Self: Sized,
                     Neglect: TransmuteOptions,
                 {
-                    use core::{mem, ptr};
-                    unsafe {
-                        let dst = ptr::read_unaligned(&src as *const Src as *const Self);
-                        mem::forget(src);
-                        dst
-                    }
+                    unsafe_transmute::<Src, Self, Neglect>(src)
                 }
             }
 
@@ -235,11 +239,11 @@ pub mod core {
                 /// pub struct Foo(pub Bar, pub Baz);
                 /// ```
                 pub trait PromiseTransmutableInto
+                where
+                    Self::Archetype: PromiseTransmutableInto
                 {
                     /// A type which exemplifies the greatest extent to which `Self` might change in non-breaking crate releases, insofar that those changes might affect converting `Self` into another type via transmutation. 
-                    type Archetype
-                        : TransmuteFrom<Self, NeglectStability>
-                        + PromiseTransmutableInto;
+                    type Archetype: TransmuteFrom<Self, NeglectStability>;
                 }
 
                 /// Promise that a type may be stably transmuted *from* other types.
@@ -254,11 +258,11 @@ pub mod core {
                 /// ```
                 /* #[lang = "promise_transmutable_from"] */
                 pub trait PromiseTransmutableFrom
+                where
+                    Self::Archetype: PromiseTransmutableFrom
                 {
                     /// A type which exemplifies the greatest extent to which `Self` might change in non-breaking crate releases, insofar that those changes might affect instantiating `Self` via transmutation. 
-                    type Archetype
-                        : TransmuteInto<Self, NeglectStability>
-                        + PromiseTransmutableFrom;
+                    type Archetype: TransmuteInto<Self, NeglectStability>;
                 }
 
                 #[doc(hidden)]
